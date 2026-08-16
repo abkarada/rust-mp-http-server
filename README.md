@@ -122,6 +122,10 @@ Run test suite:
 cargo test
 ```
 
+## License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+
 ## Contact
 
 - **Author:** Abdurrahman Karadağ

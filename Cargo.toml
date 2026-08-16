@@ -3,6 +3,8 @@ name = "high-performance-http-server"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.96"
+license = "MIT"
+authors = ["Abdurrahman Karadağ <abdurrahman.karadag@roftcore.com>"]
 
 [dependencies]
 anyhow = "1.0.68"
