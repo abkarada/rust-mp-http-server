@@ -21,7 +21,7 @@ This is not a massive enterprise production software—it is a side-fun project 
 - **Slowloris & Timeout Protection:** Idle connection cleanup.
 - **Dynamic Pattern Router:** Supports dynamic path parameters (`/echo/{str}`, `/files/{filename}`) and `405 Method Not Allowed`.
 
-## Server Architecture & Nginx-Style Documentation
+## Server Architecture
 
 ### Multi-Reactor Event Loop
 
