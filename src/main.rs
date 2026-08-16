@@ -9,6 +9,7 @@ mod request;
 mod response;
 mod router;
 mod server;
+mod tls;
 
 fn main() {
     // Parse --directory CLI argument safely if provided

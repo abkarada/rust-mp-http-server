@@ -13,3 +13,6 @@ base64 = "0.22"
 mio = { version = "1.2.2", features = ["os-poll", "net"] }
 httparse = "1.8"
 hpack = "0.3"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rcgen = "0.13"
+rustls-pki-types = "1.7"

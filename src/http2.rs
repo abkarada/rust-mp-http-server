@@ -66,15 +66,29 @@ pub struct Http2Connection {
     pub preface_received: bool,
     hpack_decoder: Decoder<'static>,
     active_streams: HashMap<u32, RequestBuilder>,
+    pub connection_window_size: u32,
 }
 
-#[derive(Default)]
 struct RequestBuilder {
     headers: HashMap<String, String>,
     method: Option<Method>,
     path: Option<String>,
     body: Vec<u8>,
     end_stream: bool,
+    window_size: u32,
+}
+
+impl Default for RequestBuilder {
+    fn default() -> Self {
+        Self {
+            headers: HashMap::new(),
+            method: None,
+            path: None,
+            body: Vec::new(),
+            end_stream: false,
+            window_size: 65535,
+        }
+    }
 }
 
 impl Http2Connection {
@@ -83,6 +97,7 @@ impl Http2Connection {
             preface_received: false,
             hpack_decoder: Decoder::new(),
             active_streams: HashMap::new(),
+            connection_window_size: 65535,
         }
     }
 
@@ -197,6 +212,23 @@ impl Http2Connection {
                     }
                 }
                 FrameType::Ping => {}
+                FrameType::WindowUpdate => {
+                    if payload.len() >= 4 {
+                        let increment = (((payload[0] as u32) & 0x7F) << 24)
+                            | ((payload[1] as u32) << 16)
+                            | ((payload[2] as u32) << 8)
+                            | (payload[3] as u32);
+                        if header.stream_id == 0 {
+                            self.connection_window_size =
+                                self.connection_window_size.saturating_add(increment);
+                        } else if let Some(stream_builder) =
+                            self.active_streams.get_mut(&header.stream_id)
+                        {
+                            stream_builder.window_size =
+                                stream_builder.window_size.saturating_add(increment);
+                        }
+                    }
+                }
                 _ => {}
             }
         }
