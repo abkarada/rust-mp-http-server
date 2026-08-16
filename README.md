@@ -1,6 +1,6 @@
 # High Performance Multi-Protocol HTTP Server
 
-A multi-threaded, zero-copy HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) server written in Rust using `mio`, `httparse`, `hpack`, and custom QUIC/QPACK parsers.
+A multi-threaded, zero-copy HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) server written in Rust using `mio`, `httparse`, `hpack`, `rustls`, and `bytes`.
 
 ## Why Rust & Why This Project?
 
@@ -11,10 +11,13 @@ This is not a massive enterprise project—it is a side-fun project built to exp
 ## Features
 
 - **Multi-Protocol Engine:** Supports HTTP/1.1 (TCP), HTTP/2 (TCP / Binary Framing / HPACK), and HTTP/3 (UDP / QUIC / QPACK).
+- **TLS 1.3 Encryption:** Memory-safe TLS 1.3 encryption using `rustls`, self-signed cert generation (`rcgen`), and ALPN negotiation (`h2`, `http/1.1`).
 - **Master-Worker Multi-Reactor:** Multi-threaded event loop per CPU core (`mio::Poll`).
 - **Zero Lock Contention:** Socket ownership is transferred via lock-free channels (`mpsc`) and `mio::Waker` signals.
+- **Zero-Allocation Buffer Pooling:** `bytes::BytesMut` connection buffers for $O(1)$ zero-copy slicing and heap fragmentation prevention.
 - **Zero-Copy Parsing:** HTTP/1.1 headers parsed directly over raw byte slices with `httparse`.
 - **Non-Blocking Write State Machine:** Handles socket backpressure (`WouldBlock`) asynchronously.
+- **HTTP/2 Flow Control:** Stream and connection-level `WINDOW_UPDATE` window tracking.
 - **Slowloris & Timeout Protection:** Idle connection cleanup.
 - **Dynamic Pattern Router:** Supports dynamic path parameters (`/echo/{str}`, `/files/{filename}`) and `405 Method Not Allowed`.
 
