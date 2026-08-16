@@ -21,14 +21,55 @@ This is not a massive enterprise project—it is a side-fun project built to exp
 - **Slowloris & Timeout Protection:** Idle connection cleanup.
 - **Dynamic Pattern Router:** Supports dynamic path parameters (`/echo/{str}`, `/files/{filename}`) and `405 Method Not Allowed`.
 
-## Usage
+## Quick Installation
 
-Build the project:
+### 1-Line Cloud VM Installer
+Run this command on any Linux Cloud VM (Ubuntu, Debian, Arch, Fedora, Alpine):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/abkarada/rust-mp-http-server/main/install.sh | sh
+```
+
+### Systemd Service Management
+
+Start the server:
+```sh
+sudo systemctl start mp-http-server
+```
+
+Enable on boot:
+```sh
+sudo systemctl enable mp-http-server
+```
+
+Check status:
+```sh
+sudo systemctl status mp-http-server
+```
+
+### Arch Linux (AUR) Installation
+Build and install via AUR:
+
+```sh
+yay -S rust-mp-http-server
+```
+
+### Debian / Ubuntu (.deb) Package Generation
+Build a `.deb` package using `cargo-deb`:
+
+```sh
+cargo deb
+sudo dpkg -i target/debian/high-performance-http-server_0.1.0_amd64.deb
+```
+
+## Manual Building
+
+Build from source:
 ```sh
 cargo build --release
 ```
 
-Run the server:
+Run the binary:
 ```sh
 cargo run --release -- --directory ./public
 ```

@@ -1,0 +1,12 @@
+[Unit]
+Description=High-Performance Multi-Protocol HTTP Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/mp-http-server --directory /var/www/html
+Restart=on-failure
+User=nobody
+
+[Install]
+WantedBy=multi-user.target

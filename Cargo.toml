@@ -16,3 +16,14 @@ hpack = "0.3"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 rcgen = "0.13"
 rustls-pki-types = "1.7"
+
+[package.metadata.deb]
+maintainer = "Abdurrahman Karadağ <abdurrahman.karadag@roftcore.com>"
+copyright = "2026, Abdurrahman Karadağ"
+extended-description = "A high-performance multi-protocol HTTP/1.1, HTTP/2, and HTTP/3 QUIC server written in Rust."
+section = "web"
+priority = "optional"
+assets = [
+    ["target/release/high-performance-http-server", "usr/bin/mp-http-server", "755"],
+    ["mp-http-server.service", "lib/systemd/system/mp-http-server.service", "644"],
+]
