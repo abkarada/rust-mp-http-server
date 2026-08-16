@@ -10,6 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use bytes::{Buf, BytesMut};
 use mio::net::{TcpListener, TcpStream, UdpSocket};
 use mio::{Events, Interest, Poll, Token, Waker};
 
@@ -19,6 +20,7 @@ use crate::{error::HttpError, handler, request::Request};
 
 const WAKER_TOKEN: Token = Token(0);
 const IDLE_TIMEOUT: Duration = Duration::from_secs(10);
+const BUFFER_CAPACITY: usize = 4096;
 
 struct SubReactorHandle {
     sender: Sender<TcpStream>,
@@ -33,8 +35,8 @@ enum ProtocolState {
 
 struct ClientConnection {
     stream: TcpStream,
-    read_buf: Vec<u8>,
-    write_buf: Vec<u8>,
+    read_buf: BytesMut,
+    write_buf: BytesMut,
     last_activity: Instant,
     protocol: ProtocolState,
 }
@@ -92,8 +94,8 @@ impl SubReactor {
                                 token,
                                 ClientConnection {
                                     stream,
-                                    read_buf: Vec::new(),
-                                    write_buf: Vec::new(),
+                                    read_buf: BytesMut::with_capacity(BUFFER_CAPACITY),
+                                    write_buf: BytesMut::with_capacity(BUFFER_CAPACITY),
                                     last_activity: Instant::now(),
                                     protocol: ProtocolState::Unknown,
                                 },
@@ -123,7 +125,7 @@ impl SubReactor {
             if event.is_writable() && !client.write_buf.is_empty() {
                 match client.stream.write(&client.write_buf) {
                     Ok(n) => {
-                        client.write_buf.drain(..n);
+                        client.write_buf.advance(n);
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {}
                     Err(_) => {
@@ -160,7 +162,7 @@ impl SubReactor {
                                 ProtocolState::Http2(h2_conn) => {
                                     match h2_conn.process_input(&client.read_buf) {
                                         Ok(Some((consumed, completed_requests))) => {
-                                            client.read_buf.drain(..consumed);
+                                            client.read_buf.advance(consumed);
                                             for (stream_id, req) in completed_requests {
                                                 let res = handler::route(&req);
                                                 let res_bytes =
@@ -189,7 +191,7 @@ impl SubReactor {
                                             }
 
                                             client.write_buf.extend_from_slice(&res_bytes);
-                                            client.read_buf.drain(..consumed_bytes);
+                                            client.read_buf.advance(consumed_bytes);
 
                                             if should_close {
                                                 should_remove = true;
@@ -212,7 +214,7 @@ impl SubReactor {
                             if !client.write_buf.is_empty() {
                                 match client.stream.write(&client.write_buf) {
                                     Ok(written) => {
-                                        client.write_buf.drain(..written);
+                                        client.write_buf.advance(written);
                                     }
                                     Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {}
                                     Err(_) => {
