@@ -10,10 +10,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use mio::net::{TcpListener, TcpStream};
+use mio::net::{TcpListener, TcpStream, UdpSocket};
 use mio::{Events, Interest, Poll, Token, Waker};
 
 use crate::http2::{Http2Connection, HTTP2_PREFACE};
+use crate::http3::Http3Connection;
 use crate::{error::HttpError, handler, request::Request};
 
 const WAKER_TOKEN: Token = Token(0);
@@ -203,7 +204,6 @@ impl SubReactor {
                                     }
                                 }
                                 ProtocolState::Unknown => {
-                                    // Need more bytes to decide HTTP/1 vs HTTP/2
                                     break;
                                 }
                             }
@@ -273,9 +273,11 @@ impl SubReactor {
 }
 
 const SERVER_TOKEN: Token = Token(0);
+const UDP_SERVER_TOKEN: Token = Token(1);
 
 pub struct Server {
     listener: TcpListener,
+    udp_listener: UdpSocket,
     workers: Vec<SubReactorHandle>,
     next_worker: usize,
 }
@@ -284,6 +286,7 @@ impl Server {
     pub fn new(addr: &str) -> Result<Self, HttpError> {
         let socket_addr: SocketAddr = addr.parse().expect("Invalid address format");
         let listener = TcpListener::bind(socket_addr)?;
+        let udp_listener = UdpSocket::bind(socket_addr)?;
 
         let num_cores = thread::available_parallelism()
             .map(|n| n.get())
@@ -304,6 +307,7 @@ impl Server {
 
         Ok(Self {
             listener,
+            udp_listener,
             workers,
             next_worker: 0,
         })
@@ -315,7 +319,11 @@ impl Server {
 
         poll.registry()
             .register(&mut self.listener, SERVER_TOKEN, Interest::READABLE)
-            .expect("failed to register listener with Master Poll");
+            .expect("failed to register TCP listener with Master Poll");
+
+        poll.registry()
+            .register(&mut self.udp_listener, UDP_SERVER_TOKEN, Interest::READABLE)
+            .expect("failed to register UDP listener with Master Poll");
 
         loop {
             if let Err(e) = poll.poll(&mut events, None) {
@@ -324,8 +332,8 @@ impl Server {
             }
 
             for event in events.iter() {
-                if event.token() == SERVER_TOKEN {
-                    loop {
+                match event.token() {
+                    SERVER_TOKEN => loop {
                         match self.listener.accept() {
                             Ok((stream, _addr)) => {
                                 self.dispatch_stream(stream);
@@ -338,7 +346,33 @@ impl Server {
                                 break;
                             }
                         }
+                    },
+                    UDP_SERVER_TOKEN => {
+                        let mut buf = [0u8; 4096];
+                        loop {
+                            match self.udp_listener.recv_from(&mut buf) {
+                                Ok((len, peer_addr)) => {
+                                    let mut h3_conn = Http3Connection::new(peer_addr);
+                                    if let Ok(requests) = h3_conn.process_datagram(&buf[..len]) {
+                                        for (stream_id, req) in requests {
+                                            let res = handler::route(&req);
+                                            let res_bytes =
+                                                Http3Connection::encode_response(stream_id, &res);
+                                            let _ = self.udp_listener.send_to(&res_bytes, peer_addr);
+                                        }
+                                    }
+                                }
+                                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                    break;
+                                }
+                                Err(e) => {
+                                    eprintln!("udp recv error: {e}");
+                                    break;
+                                }
+                            }
+                        }
                     }
+                    _ => {}
                 }
             }
         }

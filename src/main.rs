@@ -4,6 +4,7 @@ mod compression;
 mod error;
 mod handler;
 mod http2;
+mod http3;
 mod request;
 mod response;
 mod router;
